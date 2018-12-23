@@ -64,4 +64,4 @@ def discover(timeout=2, retries=1, st=ST_ECP):
             except socket.timeout:
                 break
 
-    return responses.values()
+    return [v for v in responses.values() if v.st == st]
