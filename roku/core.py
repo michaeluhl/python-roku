@@ -116,6 +116,18 @@ class DeviceInfo(object):
                 (self.model_name, self.model_num,
                  self.software_version, self.serial_num))
 
+    @classmethod
+    def from_dict(cls, dinfo):
+        return cls(model_name=dinfo['model-name'],
+                   model_num=dinfo['model-number'],
+                   software_version=''.join([
+                       dinfo['software-version'],
+                       '.',
+                       dinfo['software-build']
+                   ]),
+                   serial_num=dinfo['serial-number'],
+                   user_device_name=dinfo['user-device-name'])
+
 
 class Roku(object):
 
@@ -225,20 +237,16 @@ class Roku(object):
 
     @property
     def device_info(self):
+        s2b = {'true': True, 'false': False}
         resp = self._get('/query/device-info')
         root = ET.fromstring(resp)
-
-        dinfo = DeviceInfo(
-            model_name=root.find('model-name').text,
-            model_num=root.find('model-number').text,
-            software_version=''.join([
-                root.find('software-version').text,
-                '.',
-                root.find('software-build').text
-            ]),
-            serial_num=root.find('serial-number').text,
-            user_device_name=root.find('user-device-name').text
-        )
+        dinfo = dict([(e.tag, e.text) for e in root.getchildren()])
+        # Convert any bools...
+        for k, v in dinfo.items():
+            try:
+                dinfo[k] = s2b[v]
+            except KeyError:
+                pass
         return dinfo
 
     @property
@@ -271,6 +279,14 @@ class Roku(object):
         }
 
         self.input(params)
+
+    def power_mode(self):
+        try:
+            return self.device_info['power-mode']
+        except RokuException:
+            return 'Unknown (likely PowerOff)'
+        except KeyError:
+            return 'Unsupported'
 
     @property
     def current_app(self):
